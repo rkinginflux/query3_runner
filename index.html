@@ -1,0 +1,78 @@
+<!-- My index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="styles.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>InfluxDB SQL Query Runner</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; padding: 20px; }
+        textarea { width: 80%; height: 150px; margin-bottom: 10px; resize: vertical; }
+        button { padding: 10px 15px; font-size: 16px; cursor: pointer; }
+        button:hover { background-color: #f0f0f0; }
+        pre { background: #f4f4f4; padding: 10px; text-align: left; white-space: pre-wrap; word-wrap: break-word; }
+        .loading { display: inline-block; width: 20px; height: 20px; border: 3px solid #f3f3f3; border-top: 3px solid #3498db; border-radius: 50%; animation: spin 2s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .error { color: red; }
+    </style>
+</head>
+<body>
+    <h2>InfluxDB SQL Query Runner</h2>
+    <textarea id="queryInput" placeholder="Enter your SQL query here...">SELECT * FROM ears LIMIT 10</textarea>
+    <br>
+    <button onclick="runQuery()">Run Query</button>
+    <span id="loadingIndicator"></span>
+    <h3>Results:</h3>
+    <pre id="result">Query results will appear here...</pre>
+
+    <script>
+        async function runQuery() {
+            const query = document.getElementById("queryInput").value.trim();
+            const resultElement = document.getElementById("result");
+            const loadingIndicator = document.getElementById("loadingIndicator");
+
+            if (!query) {
+                resultElement.textContent = "Error: Query cannot be empty.";
+                resultElement.classList.add("error");
+                return;
+            }
+
+            resultElement.textContent = "";
+            resultElement.classList.remove("error");
+            loadingIndicator.innerHTML = '<span class="loading"></span>';
+
+            try {
+                const result = await fetchAndProcessQuery(query);
+                resultElement.textContent = result;
+                loadingIndicator.innerHTML = "";
+            } catch (error) {
+                resultElement.textContent = "Error: " + error.message;
+                resultElement.classList.add("error");
+                loadingIndicator.innerHTML = "";
+            }
+        }
+
+        async function fetchAndProcessQuery(query) {
+            const response = await fetch("/query", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ query: query })
+            });
+
+            if (!response.ok) {
+                throw new Error(await response.text());
+            }
+
+            const contentType = response.headers.get("Content-Type");
+            const resultText = contentType && contentType.includes("application/json")
+                ? await response.json()
+                : await response.text();
+
+            return typeof resultText === "object"
+                ? JSON.stringify(resultText, null, 2)
+                : resultText;
+        }
+    </script>
+</body>
+</html>
